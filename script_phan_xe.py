@@ -1,5 +1,9 @@
 import math
+import os
 import pandas as pd
+
+# Đường dẫn thư mục chứa file code
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -22,21 +26,20 @@ def phan_xe_smart(
     file_orders='orders.csv',
     mode='baseline_3xe',
 ):
-  """Hàm phân xe tự động hỗ trợ 2 chế độ:
+  path_depots = os.path.join(BASE_DIR, file_depots)
+  path_vehicles = os.path.join(BASE_DIR, file_vehicles)
+  path_orders = os.path.join(BASE_DIR, file_orders)
 
-  - mode='baseline_3xe': Thuật toán Baseline Tham lam (Kéo theo 3 xe)
-  - mode='comparison_2xe': Phương án gom đơn D09 sang V03 kho K02 (Chỉ dùng 2
-  xe)
-  """
+  # 1. Nạp dữ liệu
   try:
-    depots = pd.read_csv(file_depots)
-    vehicles = pd.read_csv(file_vehicles)
-    orders = pd.read_csv(file_orders)
+    depots = pd.read_csv(path_depots)
+    vehicles = pd.read_csv(path_vehicles)
+    orders = pd.read_csv(path_orders)
   except Exception as e:
-    print(f'[LỖI] Không thể đọc file dữ liệu: {e}')
-    return
+    print(f'[LỖI CRITICAL] Không thể đọc file dữ liệu: {e}')
+    return None, None, None
 
-  # Khởi tạo trạng thái lấp đầy của từng xe
+  # Khởi tạo trạng thái từng xe
   veh_status = {
       v_row['ma_xe']: {
           'kho_quan_ly': v_row['ma_kho_quan_ly'],
@@ -44,7 +47,6 @@ def phan_xe_smart(
           'max_m3': v_row['the_tich_m3'],
           'current_kg': 0.0,
           'current_m3': 0.0,
-          'cost_fixed': v_row['chi_phi_co_dinh_vnd'],
           'orders': [],
       }
       for _, v_row in vehicles.iterrows()
@@ -54,16 +56,18 @@ def phan_xe_smart(
       row['ma_kho']: (row['vi_do'], row['kinh_do'])
       for _, row in depots.iterrows()
   }
-  assigned_records, unassigned_records = [], []
 
-  # Lặp qua từng đơn hàng để tiến hành phân bổ
+  assigned_records = []
+  unassigned_records = []
+
+  # 2. Xử lý từng đơn hàng
   for _, order in orders.iterrows():
     ma_don = order['ma_don']
-    order_kg = order['khoi_luong_kg']
-    order_m3 = order['the_tich_m3']
-    order_lat, order_lon = order['vi_do'], order['kinh_do']
+    order_kg = float(order['khoi_luong_kg'])
+    order_m3 = float(order['the_tich_m3'])
+    order_lat, order_lon = float(order['vi_do']), float(order['kinh_do'])
 
-    # 1. KIỂM TRA CỘT kho_phuc_vu THEO YÊU CẦU CỦA BA/QA
+    # Kiểm tra cột kho_phuc_vu
     raw_kho_pv = str(order['kho_phuc_vu'])
     allowed_depots = [
         k.strip() for k in raw_kho_pv.split(';') if k.strip() in depot_coords
@@ -75,11 +79,13 @@ def phan_xe_smart(
           'ten_khach_hang': order['ten_khach_hang'],
           'khoi_luong_kg': order_kg,
           'the_tich_m3': order_m3,
-          'ly_do_bo_sot': f'Không tìm thấy kho phục vụ hợp lệ ({raw_kho_pv})',
+          'ly_do_tu_choi': (
+              f"Kho phục vụ '{raw_kho_pv}' không hợp lệ trong depots.csv"
+          ),
       })
       continue
 
-    # Sắp xếp các kho hợp lệ theo khoảng cách gần nhất
+    # Tính khoảng cách tới kho cho phép & sắp xếp
     depot_dist = {
         d_id: haversine(
             order_lat,
@@ -89,26 +95,34 @@ def phan_xe_smart(
         )
         for d_id in allowed_depots
     }
-    sorted_allowed_depots = sorted(allowed_depots, key=lambda x: depot_dist[x])
+    sorted_allowed_depots = sorted(allowed_depots, key=lambda d: depot_dist[d])
 
-    # 2. XÁC ĐỊNH XE ỨNG VIÊN (Tùy theo Kịch bản 3 xe hay 2 xe)
+    # Chọn danh sách xe ứng viên theo kịch bản
     if mode == 'comparison_2xe' and ma_don == 'D09':
-      candidate_vehs = ['V03']  # Ép D09 sang xe V03 thuộc kho K02
+      candidate_vehs = ['V03']
     else:
       candidate_vehs = []
       for d_id in sorted_allowed_depots:
         vehs = vehicles[vehicles['ma_kho_quan_ly'] == d_id]['ma_xe'].tolist()
         candidate_vehs.extend(vehs)
 
-    # 3. PHÂN ĐƠN CHO XE ĐẦU TIÊN CÒN ĐỦ SỨC CHỨA
+    # Thử gán xe
     assigned_veh = None
+    failed_logs = []
+
     for v_code in candidate_vehs:
       st = veh_status[v_code]
-      if (st['current_kg'] + order_kg <= st['max_kg']) and (
-          st['current_m3'] + order_m3 <= st['max_m3']
-      ):
+      remain_kg = st['max_kg'] - st['current_kg']
+      remain_m3 = st['max_m3'] - st['current_m3']
+
+      if order_kg <= remain_kg and order_m3 <= remain_m3:
         assigned_veh = v_code
         break
+      else:
+        failed_logs.append(
+            f'Xe {v_code} (Kho {st["kho_quan_ly"]}): Dư {remain_kg:.1f}kg /'
+            f' {remain_m3:.2f}m3'
+        )
 
     if assigned_veh:
       st = veh_status[assigned_veh]
@@ -143,35 +157,39 @@ def phan_xe_smart(
           'ten_khach_hang': order['ten_khach_hang'],
           'khoi_luong_kg': order_kg,
           'the_tich_m3': order_m3,
-          'ly_do_bo_sot': (
-              'Vượt quá tải trọng/thể tích của tất cả các xe hợp lệ'
+          'ly_do_tu_choi': (
+              f'Các xe đều quá tải: {"; ".join(failed_logs)}'
           ),
       })
 
-  # 4. XUẤT FILE VÀ BÁO CÁO CẢNH BÁO
+  # 3. Xuất file kết quả
   df_assigned = pd.DataFrame(assigned_records)
   df_unassigned = pd.DataFrame(unassigned_records)
 
-  out_file = (
+  out_filename = (
       'phan_xe_ban_dau.csv'
       if mode == 'baseline_3xe'
       else 'phan_xe_phuong_an_2xe.csv'
   )
-  df_assigned.to_csv(out_file, index=False, encoding='utf-8-sig')
+  out_path = os.path.join(BASE_DIR, out_filename)
+  df_assigned.to_csv(out_path, index=False, encoding='utf-8-sig')
 
-  print(f"-> File xuất ra: '{out_file}'")
+  # In câu thông báo chuẩn của code cũ
+  print(f"-> File xuất ra: '{out_filename}'")
   if not df_unassigned.empty:
-    print('[CẢNH BÁO] Danh sách các đơn chưa được phân (Bị bỏ sót):')
+    print('[CẢNH BÁO] CÓ ĐƠN HÀNG CHƯA ĐƯỢC PHÂN:')
     print(df_unassigned)
   else:
-    print('-> Phân bổ 100% thành công, không có đơn hàng bị bỏ sót.\n')
+    print(
+        '-> Phân bổ 100% thành công, không có đơn hàng bị bỏ sót.\n'
+    )
 
   return df_assigned, df_unassigned, veh_status
 
 
 if __name__ == '__main__':
   print('=== CHẠY PHƯƠNG ÁN 1: BASELINE (3 XE) ===')
-  phan_xe_smart(mode='baseline_3xe')
+  df1, un1, st1 = phan_xe_smart(mode='baseline_3xe')
 
   print('=== CHẠY PHƯƠNG ÁN 2: SO SÁNH GOM ĐƠN (2 XE) ===')
-  phan_xe_smart(mode='comparison_2xe')
+  df2, un2, st2 = phan_xe_smart(mode='comparison_2xe')
