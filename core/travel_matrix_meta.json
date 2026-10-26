@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "provider": "estimate",
+  "fallback_from": null,
+  "provider_detail": {
+    "method": "haversine x circuity; thoi_gian = quang_duong / toc_do",
+    "circuity": 1.35,
+    "speed_kmh": 25.0,
+    "n_requests": 0
+  },
+  "created_utc": "2026-10-24T16:58:54+00:00",
+  "created_vn": "2026-10-24T23:58:54+07:00",
+  "n_locations": 12,
+  "n_kho": 2,
+  "n_diem_giao": 10,
+  "n_pairs": 132,
+  "location_ids": [
+    "K01",
+    "K02",
+    "D01",
+    "D02",
+    "D03",
+    "D04",
+    "D05",
+    "D06",
+    "D07",
+    "D08",
+    "D09",
+    "D10"
+  ],
+  "units": {
+    "khoang_cach_m": "mét (int)",
+    "thoi_gian_s": "giây (int)"
+  },
+  "inputs": {
+    "depots.csv": {
+      "path": "/home/claude/tv4_travel_matrix/data/depots.csv",
+      "sha256": "780f0a12596f92297fe35cedc1fca5b775667368f0b387c4cd3cbe405715b750"
+    },
+    "orders.csv": {
+      "path": "/home/claude/tv4_travel_matrix/data/orders.csv",
+      "sha256": "22f74c29307479b02a1d97aab2f9c289fc784e76ea2015381f59832f8b748ace"
+    }
+  },
+  "outputs_sha256": {
+    "locations.csv": "37114d71e681770866f4ab40a4f4206fd492a838b74b453b9d8261f3477ed014",
+    "travel_matrix.csv": "b23b21d12bf8245fed064b1993ed976fecf19a2148ca7aa6212d9499e1c98e2b",
+    "matrix_distance_km.csv": "fc1595ffd2dc6353326fdfc364a239152c9eac01990b54832fb52dbc7ce925b2",
+    "matrix_duration_min.csv": "5de0f69a8fcb3f0627f5023a0858bfef865f1c55e11db2351bd4e02124a96fc9"
+  },
+  "validation": {
+    "n": 12,
+    "n_pairs": 132,
+    "khoang_cach_km": {
+      "min": 3.027,
+      "mean": 11.075,
+      "max": 25.121
+    },
+    "thoi_gian_phut": {
+      "min": 7.27,
+      "mean": 26.58,
+      "max": 60.28
+    },
+    "toc_do_tb_kmh": 25.0,
+    "he_so_duong_vong": {
+      "min": 1.35,
+      "mean": 1.35,
+      "max": 1.35
+    },
+    "bat_doi_xung_max_pct": 0.0,
+    "vi_pham_tam_giac_thoi_gian": 0
+  },
+  "warnings": [],
+  "filled_pairs": [],
+  "runtime_s": 0.04,
+  "software": {
+    "python": "3.12.3",
+    "pandas": "3.0.2",
+    "numpy": "2.4.4",
+    "requests": "2.33.1"
+  }
+}
