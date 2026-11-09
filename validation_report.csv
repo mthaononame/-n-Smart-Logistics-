@@ -1,0 +1,13 @@
+﻿kich_ban,muc_do,file,dong,cot,ma_loi,noi_dung
+S01,INFO,orders.csv,25,vi_do,I_SAME_LOCATION,"Đơn D24 cùng địa điểm với đơn D03 (được phép, mỗi đơn có mã riêng)"
+S01,INFO,orders.csv,26,vi_do,I_SAME_LOCATION,"Đơn D25 cùng địa điểm với đơn D02 (được phép, mỗi đơn có mã riêng)"
+S02,INFO,orders.csv,25,vi_do,I_SAME_LOCATION,"Đơn D24 cùng địa điểm với đơn D03 (được phép, mỗi đơn có mã riêng)"
+S02,INFO,orders.csv,26,vi_do,I_SAME_LOCATION,"Đơn D25 cùng địa điểm với đơn D02 (được phép, mỗi đơn có mã riêng)"
+S03,INFO,orders.csv,25,vi_do,I_SAME_LOCATION,"Đơn D24 cùng địa điểm với đơn D03 (được phép, mỗi đơn có mã riêng)"
+S03,INFO,orders.csv,26,vi_do,I_SAME_LOCATION,"Đơn D25 cùng địa điểm với đơn D02 (được phép, mỗi đơn có mã riêng)"
+S04,INFO,orders.csv,25,vi_do,I_SAME_LOCATION,"Đơn D24 cùng địa điểm với đơn D03 (được phép, mỗi đơn có mã riêng)"
+S05,INFO,orders.csv,25,vi_do,I_SAME_LOCATION,"Đơn D24 cùng địa điểm với đơn D03 (được phép, mỗi đơn có mã riêng)"
+S05,INFO,orders.csv,26,vi_do,I_SAME_LOCATION,"Đơn D25 cùng địa điểm với đơn D02 (được phép, mỗi đơn có mã riêng)"
+S05,WARNING,orders.csv,27,khoi_luong_kg,W_FEAS_ORDER_TOO_HEAVY,Đơn D26 nặng 2900.0 kg > tải trọng lớn nhất của xe có thể phục vụ (2500 kg) -> không xe nào chở được
+S05,WARNING,orders.csv,,khoi_luong_kg,W_FEAS_FLEET_WEIGHT,26 đơn chỉ phục vụ được bởi toàn bộ đội xe có tổng 12879.3 kg > tổng tải trọng 10000 kg (một chuyến/xe) -> không thể giao hết nếu mỗi xe chỉ chạy một chuyến
+S05,WARNING,orders.csv,,the_tich_m3,W_FEAS_FLEET_VOLUME,26 đơn chỉ phục vụ được bởi toàn bộ đội xe có tổng 90.72 m3 > tổng thể tích 60 m3 (một chuyến/xe) -> không thể giao hết nếu mỗi xe chỉ chạy một chuyến
