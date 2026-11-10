@@ -12,7 +12,7 @@ validation_report.csv                                       # báo cáo do valid
 data/scenarios/
     scenario_description.csv                                # mô tả mục đích / kết quả mong đợi
     S01/ S02/ S03/ S04/ S05/                                # mỗi thư mục có depots, vehicles, orders
-tests/test_validate_data.py                                 # kiểm thử cho validator
+tests/test_validate_data.py, tests/test_generate_scenarios.py   # kiểm thử cho validator và generator
 ```
 
 ## 2. Quy ước chung (áp dụng cho mọi file CSV)
@@ -66,13 +66,29 @@ tests/test_validate_data.py                                 # kiểm thử cho v
 
 | Mã | Tên | Đơn | Xe | Đặc điểm chính | Kết quả mong đợi |
 |---|---|---|---|---|---|
-| S01 | Bình thường | 25 | 4 | D01–D10 giữ nguyên bản gốc; 2 cặp đơn cùng địa điểm (D03/D24, D02/D25); 3 đơn nhẹ nhưng cồng kềnh (D14, D20, D23) | Giao đủ 25 đơn, không trễ |
-| S02 | Nhu cầu cao | 28 | 6 | Tổng 13.200 kg, vượt năng lực 5 xe | Giao đủ, cần dùng đủ 6 xe |
-| S03 | Hạn giao gấp | 25 | 4 | Khung giờ hẹp, dồn 08:30–11:30 | Cần nhiều xe chạy song song, chi phí cao hơn S01 |
+| S01 | Bình thường | 25 | 4 | D01–D10 giữ nguyên bản gốc; 2 cặp đơn cùng địa điểm (D03/D24, D02/D25); 3 đơn nhẹ nhưng cồng kềnh (D14, D20, D23) | Giao đủ 25 đơn, không trễ; cần tối thiểu 4 xe theo thể tích |
+| S02 | Nhu cầu cao | 28 | 6 | Tổng 13.200 kg, vượt năng lực 5 xe (12.500 kg) | Giao đủ, cần dùng đủ 6 xe |
+| S03 | Hạn giao gấp | 25 | 6 | Khung giờ hẹp (chỉ rộng hơn thời gian dỡ 40–75 phút), dồn 08:30–11:45. Dùng 6 xe vì thử với 4 xe không giao đủ được | Giao đủ nhưng phải chạy song song nhiều xe (phương án thử cần 5/6 xe), chi phí cao hơn S01 |
 | S04 | Giới hạn kho | 24 | 4 | 8 đơn chỉ K01, 8 đơn chỉ K02, 8 đơn cả hai | Không đơn nào gán sai kho |
 | S05 | Thiếu năng lực | 26 | 4 | Tổng 12.879 kg > 10.000 kg; D26 nặng 2.900 kg > tải mọi xe; nhiều đơn cồng kềnh | **Không thể giao hết**, phải cảnh báo danh sách đơn chưa phục vụ (chắc chắn có D26) |
 
-Số liệu chi tiết (tổng khối lượng, thể tích, kết quả mong đợi) có trong `data/scenarios/scenario_description.csv`. Các kịch bản được sinh bằng `python generate_scenarios.py` (seed cố định, chạy lại cho cùng kết quả). Nếu cần chỉnh số liệu, sửa trong script rồi sinh lại, đừng sửa tay từng file.
+Số liệu chi tiết (tổng khối lượng, thể tích, số xe tối thiểu ước tính, kết quả mong đợi) có trong `data/scenarios/scenario_description.csv`.
+
+### Chương trình sinh kịch bản `generate_scenarios.py`
+
+```
+python generate_scenarios.py                 # sinh S01–S05 + scenario_description.csv, rồi tự kiểm tra
+python generate_scenarios.py --check         # so sánh với file đang có (dùng trước khi commit, mã thoát 1 nếu lệch)
+python generate_scenarios.py --list          # liệt kê kịch bản
+python generate_scenarios.py --only S03      # chỉ ghi lại một kịch bản
+```
+
+- **Đọc dữ liệu gốc** (`depots.csv`, `vehicles.csv`, `orders.csv` ở thư mục gốc): 2 kho, thông số xe mẫu và 10 đơn D01–D10 lấy từ file của nhóm. Khi nhóm sửa dữ liệu gốc, chạy lại là các kịch bản đồng bộ theo. Thiếu file gốc thì dùng bộ dữ liệu nhúng sẵn.
+- **Không bao giờ ghi đè** dữ liệu gốc; chỉ ghi vào `data/scenarios/`. Cột lấy từ `SCHEMA` trong `validate_data.py`; nếu file gốc có cột khác thì dừng và báo rõ, không tự đổi tên cột.
+- **Seed cố định** nên chạy lại cho kết quả giống hệt (xác nhận bằng `--check`). Không đổi seed khi bàn giao.
+- **Tự kiểm tra sau khi sinh:** (1) mỗi kịch bản còn đúng mục đích thiết kế (S04 đúng số đơn theo kho, S05 vẫn thiếu năng lực...), (2) chạy `validate_data.py` không có ERROR, (3) chỉ S05 có cảnh báo `W_FEAS_*`, (4) một heuristic chèn đơn thử tìm phương án: S01–S04 phải giao đủ, S05 không được giao đủ. Nếu một kiểm tra thất bại, script dừng và **không ghi file**.
+- Muốn đổi số liệu (số đơn, tổng khối lượng, số xe...), sửa bảng `CONFIG` ở đầu script rồi chạy lại, không sửa tay file CSV.
+- Phương án thử chỉ là **ước lượng thô** (khoảng cách đường chim bay × 1,3, 30 km/h, mỗi xe một chuyến/ca) nhằm bảo đảm kịch bản không vô nghiệm; **không phải** thuật toán của nhóm và không dùng làm kết quả báo cáo.
 
 **Dùng kịch bản trong code** (ví dụ):
 
@@ -105,11 +121,11 @@ Mã thoát: `0` không có ERROR, `1` có ERROR, `2` không tìm thấy dữ li�
 | **INFO** | Ghi chú, không cần sửa | `I_SAME_LOCATION` (nhiều đơn cùng địa điểm, được phép) |
 
 - S05 là ví dụ điển hình: **0 ERROR**, có WARNING `W_FEAS_*`. Đây là dữ liệu đúng, chỉ là năng lực vận chuyển không đủ.
-- Các cảnh báo `W_FEAS_FLEET_*` giả định mỗi xe chạy **một chuyến**. Nếu thuật toán cho phép xe chạy nhiều chuyến trong ca thì cảnh báo này chỉ mang tính tham khảo.
+- Các cảnh báo `W_FEAS_FLEET_*` giả định mỗi xe chạy **một chuyến/ca** (khớp quy ước trong `giai_thich_cot.csv`: chi phí cố định tính một lần cho mỗi xe mỗi ca, xe về trong ca). Nếu thuật toán cho phép xe chạy nhiều chuyến thì cảnh báo này chỉ mang tính tham khảo.
 - `W_FEAS_TIME` dùng ước lượng thô (đường chim bay × 1,3, 30 km/h) để tránh phụ thuộc ma trận đường đi; con số có thể chỉnh ở đầu `validate_data.py`.
 - Validator cũng đối chiếu danh sách cột với `giai_thich_cot.csv` (nếu tìm thấy) để phát hiện tài liệu lệch với dữ liệu.
 
-Kiểm thử validator: `python -m unittest tests.test_validate_data -v`.
+Kiểm thử: `python -m unittest tests.test_validate_data tests.test_generate_scenarios -v`.
 
 ## 6. Cách thêm dữ liệu
 
@@ -135,6 +151,7 @@ Kiểm thử validator: `python -m unittest tests.test_validate_data -v`.
 
 ## 8. Checklist bàn giao
 
+- [ ] `python generate_scenarios.py --check` báo "Khớp hoàn toàn" (chưa ai sửa tay kịch bản)
 - [ ] `python validate_data.py` cho ERROR = 0 ở mọi thư mục
 - [ ] `validation_report.csv` được tạo lại sau lần chạy cuối
 - [ ] TV4 đã xác minh toạ độ D11–D28 và cập nhật ma trận đường đi
